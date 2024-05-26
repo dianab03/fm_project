@@ -206,44 +206,49 @@ void read_(char *path) {
 }
 
 void rename_file(char *files[]) {
-  char new_name[100];
-  int i = 0, c;
-  wclear(path_win);
-  wmove(path_win, 1, 0);
-  while ((c = wgetch(path_win)) != '\n') {
-    if (c == 127 || c == 8) {
-      new_name[--i] = '\0';
-    } else {
-      new_name[i++] = c;
-      new_name[i] = '\0';
-    }
+    char new_name[100];
+    int i = 0, c;
+
     wclear(path_win);
     wmove(path_win, 1, 0);
-    wprintw(path_win, "%s", new_name);
-  }
-  c = ' ';
-LOOP:
-  wclear(path_win);
-  wmove(path_win, 1, 0);
-  wprintw(path_win, "%s (y/n) %c", new_name, c);
-  c = wgetch(path_win);
-  char *a, *b;
-  switch (c) {
-    case 'y':
-    case 'Y':
-      a = strdup(current_directory_->cwd);
-      b = strdup(current_directory_->cwd);
-      strcat(a, files[selection]);
-      strcat(b, new_name);
-      rename(a, b);
-      break;
-    case 'n':
-    case 'N':
-      break;
-    default:
-      goto LOOP;
-      break;
-  }
+    wprintw(path_win, "Rename to: ");
+    wrefresh(path_win);
+
+    while ((c = wgetch(path_win)) != '\n') {
+        if (c == 127 || c == 8) {  // Handle backspace
+            new_name[--i] = '\0';
+            i = i < 0 ? 0 : i;
+        } else {
+            new_name[i++] = c;
+            new_name[i] = '\0';
+        }
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Rename to: %s", new_name);
+        wrefresh(path_win);
+    }
+
+    if (i == 0) {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Name cannot be empty.");
+        wrefresh(path_win);
+        wgetch(path_win);
+        return;
+    }
+
+    char old_path[1000], new_path[1000];
+    snprintf(old_path, sizeof(old_path), "%s%s", current_directory_->cwd, files[selection]);
+    snprintf(new_path, sizeof(new_path), "%s%s", current_directory_->cwd, new_name);
+
+    if (rename(old_path, new_path) == 0) {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Renamed to: %s", new_name);
+        wrefresh(path_win);
+   
+    }
+  wgetch(path_win);
 }
 
 char *get_parent_directory(char *cwd) {
@@ -323,8 +328,60 @@ void copy_files(char *files[]) {
 }
 
 void move_file(char *files[]) {
-  copy_files(files);
-  delete_(files);
+    char target_directory[1000];
+    int i = 0, c;
+
+    wclear(path_win);
+    wmove(path_win, 1, 0);
+    wprintw(path_win, "Enter target directory: ");
+    wrefresh(path_win);
+
+    while ((c = wgetch(path_win)) != '\n') {
+        if (c == 127 || c == 8) {  // Handle backspace
+            target_directory[--i] = '\0';
+            i = i < 0 ? 0 : i;
+        } else {
+            target_directory[i++] = c;
+            target_directory[i] = '\0';
+        }
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Enter target directory: %s", target_directory);
+        wrefresh(path_win);
+    }
+
+    if (i == 0) {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Directory cannot be empty.");
+        wrefresh(path_win);
+        wgetch(path_win);
+        return;
+    }
+
+    if (target_directory[strlen(target_directory) - 1] != '/') {
+        strcat(target_directory, "/");
+    }
+
+    char new_path[1000];
+    snprintf(new_path, sizeof(new_path), "%s%s", target_directory, files[selection]);
+
+    char curr_path[1000];
+    snprintf(curr_path, sizeof(curr_path), "%s%s", current_directory_->cwd, files[selection]);
+
+    if (rename(curr_path, new_path) == 0) {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "File moved to: %s", new_path);
+        wrefresh(path_win);
+    } else {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Error moving file.");
+        wrefresh(path_win);
+    }
+
+    wgetch(path_win);
 }
 
 void handle_enter(char *files[]) {
@@ -411,90 +468,189 @@ void show_file_info(char *files[]) {
   }
 }
 
-int main() {
-  int i = 0;
-  init();
-  init_curses();
-  getcwd(current_directory_->cwd, sizeof(current_directory_->cwd));
-  strcat(current_directory_->cwd, "/");
-  current_directory_->parent_dir =
-      strdup(get_parent_directory(current_directory_->cwd));
-  int ch;
-  do {
+void create_file() {
+    char new_file_name[100];
+    int i = 0, c;
 
-    len = get_no_files_in_directory(current_directory_->cwd);
-
-    len = len <= 0 ? 1 : len;
-
-    char *files[len], *temp_dir;
-    get_files(current_directory_->cwd, files);
-    if (selection > len - 1) {
-      selection = len - 1;
-    }
-
-    getmaxyx(stdscr, maxy, maxx);
-    maxy -= 2;
-    int t = 0;
-    init_windows();
-
-    for (i = start; i < len; i++) {
-      if (t == maxy - 1)
-        break;
-      int size = snprintf(NULL, 0, "%s%s", current_directory_->cwd, files[i]);
-      if (i == selection) {
-        wattron(current_win, A_STANDOUT);
-      } else {
-        wattroff(current_win, A_STANDOUT);
-      }
-
-      temp_dir = malloc(size + 1);
-      snprintf(temp_dir, size + 1, "%s%s", current_directory_->cwd, files[i]);
-
-      stat(temp_dir, &file_stats);
-      isDir(file_stats.st_mode) ? wattron(current_win, COLOR_PAIR(1))
-                                : wattroff(current_win, COLOR_PAIR(1));
-      wmove(current_win, t + 1, 2);
-      wprintw(current_win, "%.*s\n", maxx, files[i]);
-      free(temp_dir);
-      t++;
-    }
+    wclear(path_win);
     wmove(path_win, 1, 0);
-    wprintw(path_win, " %s", current_directory_->cwd);
-    show_file_info(files);
-    refreshWindows();
+    wprintw(path_win, "Enter new file name: ");
+    wrefresh(path_win);
 
-    switch ((ch = wgetch(current_win))) {
-      case KEY_UP:
-      case KEY_NAVUP:
-        scroll_up();
-        break;
-      case KEY_DOWN:
-      case KEY_NAVDOWN:
-        scroll_down();
-        break;
-      case KEY_ENTER:
-        handle_enter(files);
-        break;
-      case 'r':
-      case 'R':
-        rename_file(files);
-        break;
-      case 'c':
-      case 'C':
-        copy_files(files);
-        break;
-      case 'm':
-      case 'M':
-        move_file(files);
-        break;
-      case 'd':
-      case 'D':
-        delete_file(files);
-        break;
+    while ((c = wgetch(path_win)) != '\n') {
+        if (c == 127 || c == 8) {  // Handle backspace
+            new_file_name[--i] = '\0';
+            i = i < 0 ? 0 : i;
+        } else {
+            new_file_name[i++] = c;
+            new_file_name[i] = '\0';
+        }
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Enter new file name: %s", new_file_name);
+        wrefresh(path_win);
     }
-    for (i = 0; i < len; i++) {
-      free(files[i]);
+
+    if (i == 0) {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "File name cannot be empty.");
+        wrefresh(path_win);
+        wgetch(path_win);
+        return;
     }
-  } while (ch != 'q');
-  endwin();
+
+    char new_file_path[1000];
+    snprintf(new_file_path, sizeof(new_file_path), "%s%s", current_directory_->cwd, new_file_name);
+
+    FILE *new_file = fopen(new_file_path, "w");
+    if (new_file == NULL) {
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Error creating file.");
+        wrefresh(path_win);
+        wgetch(path_win);
+        return;
+    }
+
+    fclose(new_file);
+    wclear(path_win);
+    wmove(path_win, 1, 0);
+    wprintw(path_win, "File created: %s", new_file_name);
+    wrefresh(path_win);
+    wgetch(path_win);
+}
+
+void search_file(char *files[], int len) {
+    char search_term[100];
+    int i = 0, c;
+
+    wclear(path_win);
+    wmove(path_win, 1, 0);
+    wprintw(path_win, "Enter search term: ");
+    wrefresh(path_win);
+
+    while ((c = wgetch(path_win)) != '\n') {
+        if (c == 127 || c == 8) {  
+            search_term[--i] = '\0';
+            i = i < 0 ? 0 : i;
+        } else {
+            search_term[i++] = c;
+            search_term[i] = '\0';
+        }
+        wclear(path_win);
+        wmove(path_win, 1, 0);
+        wprintw(path_win, "Enter search term: %s", search_term);
+        wrefresh(path_win);
+    }
+
+    for (int j = 0; j < len; j++) {
+        if (strstr(files[j], search_term) != NULL) {
+            selection = j;  
+            if (selection >= maxy) {
+                start = selection - maxy / 2;
+            } else {
+                start = 0;
+            }
+            return;
+        }
+    }
+
+    wclear(path_win);
+    wmove(path_win, 1, 0);
+    wprintw(path_win, "No match found for: %s", search_term);
+    wrefresh(path_win);
+    wgetch(path_win); 
+}
+
+int main() {
+    int i = 0;
+    init();
+    init_curses();
+    getcwd(current_directory_->cwd, sizeof(current_directory_->cwd));
+    strcat(current_directory_->cwd, "/");
+    current_directory_->parent_dir = strdup(get_parent_directory(current_directory_->cwd));
+    int ch;
+    do {
+        len = get_no_files_in_directory(current_directory_->cwd);
+        len = len <= 0 ? 1 : len;
+        char *files[len], *temp_dir;
+        get_files(current_directory_->cwd, files);
+        if (selection > len - 1) {
+            selection = len - 1;
+        }
+
+        getmaxyx(stdscr, maxy, maxx);
+        maxy -= 2;
+        int t = 0;
+        init_windows();
+
+        for (i = start; i < len; i++) {
+            if (t == maxy - 1)
+                break;
+            int size = snprintf(NULL, 0, "%s%s", current_directory_->cwd, files[i]);
+            if (i == selection) {
+                wattron(current_win, A_STANDOUT);
+            } else {
+                wattroff(current_win, A_STANDOUT);
+            }
+
+            temp_dir = malloc(size + 1);
+            snprintf(temp_dir, size + 1, "%s%s", current_directory_->cwd, files[i]);
+
+            stat(temp_dir, &file_stats);
+            isDir(file_stats.st_mode) ? wattron(current_win, COLOR_PAIR(1))
+                                      : wattroff(current_win, COLOR_PAIR(1));
+            wmove(current_win, t + 1, 2);
+            wprintw(current_win, "%.*s\n", maxx, files[i]);
+            free(temp_dir);
+            t++;
+        }
+        wmove(path_win, 1, 0);
+        wprintw(path_win, " %s", current_directory_->cwd);
+        show_file_info(files);
+        refreshWindows();
+
+        switch ((ch = wgetch(current_win))) {
+            case KEY_UP:
+            case KEY_NAVUP:
+                scroll_up();
+                break;
+            case KEY_DOWN:
+            case KEY_NAVDOWN:
+                scroll_down();
+                break;
+            case KEY_ENTER:
+                handle_enter(files);
+                break;
+            case 'r':
+            case 'R':
+                rename_file(files);
+                break;
+            case 'c':
+            case 'C':
+                copy_files(files);
+                break;
+            case 'm':
+            case 'M':
+                move_file(files);
+                break;
+            case 'd':
+            case 'D':
+                delete_file(files);
+                break;
+            case 's':
+            case 'S':
+                search_file(files, len);
+                break;
+            case 'n':
+            case 'N':
+                create_file();
+                break;
+        }
+        for (i = 0; i < len; i++) {
+            free(files[i]);
+        }
+    } while (ch != 'q');
+    endwin();
 }
