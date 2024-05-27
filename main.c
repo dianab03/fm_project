@@ -1,23 +1,44 @@
-#include <dirent.h> 
 #include <fcntl.h>   
 #include <limits.h>  
 #include <locale.h>  
 #include <magic.h>
-#include <ncurses.h>  
 #include <pwd.h>      
+#include <stdlib.h>
+#include <sys/types.h>  
+#include <sys/wait.h>    
+#include <config.h>
+
+// Feature: ncurses UI
+// Description: Utilizes ncurses library for creating a text-based user interface.
+#include <ncurses.h>  
+
+// Feature: File / Directory operations (create, delete, rename, copy, moving)
+// Description: Provides functionalities to perform various file and directory operations such as create, delete, rename, copy, and move.
+// Functions used: rename_file(), delete_file(), copy_files(), move_file(), create_file(), delete_()
 #include <stdio.h>    
-#include <stdlib.h>   
+
+// Feature: Search Functionality
+// Description: Enables users to search for files within the current directory.
+// Functions used: search_file()
 #include <string.h>   
 #include <strings.h>
+
+// Feature: Directory navigation
+// Description: Allows users to navigate through directories using arrow keys and enter key.
+// Functions used: get_no_files_in_directory(), get_files(), handle_enter(), show_file_info()
+#include <dirent.h> 
 #include <sys/stat.h>   
-#include <sys/types.h>  
-#include <sys/wait.h>   
 #include <unistd.h>    
+
+
+// Feature: Memory management
+// Description: Allocates and frees memory dynamically as needed.
+// Functions used: malloc(), free()
 #include <stdlib.h>
-#include "config.h"
 
 #define isDir(mode) (S_ISDIR(mode))
 
+// Initializes the ncurses library for creating a text-based user interface.
 void init_curses() {
   initscr();
   noecho();
@@ -85,6 +106,7 @@ void* scan_directory(void* arg) {
     pthread_exit(NULL);
 }
 
+// Scans the specified directory and retrieves the names of all files and directories in it using multiple threads for parallel processing.
 int get_files_multithreaded(char* directory, char* target[], int* len) {
     const int NUM_THREADS = 4;
     pthread_t threads[NUM_THREADS];
@@ -123,6 +145,7 @@ int get_files_multithreaded(char* directory, char* target[], int* len) {
     return 1;
 }
 
+// Gets the number of files in a directory.
 int get_no_files_in_directory(char *directory) {
   int len = 0;
   DIR *dir_;
@@ -142,6 +165,7 @@ int get_no_files_in_directory(char *directory) {
   return len;
 }
 
+// Retrieves the names of all files in a directory.
 int get_files(char *directory, char *target[]) {
   int i = 0;
   DIR *dir_;
@@ -161,6 +185,7 @@ int get_files(char *directory, char *target[]) {
   return 1;
 }
 
+// Scrolls up through the list of files in the current window.
 void scroll_up() {
   selection--;
   selection = (selection < 0) ? 0 : selection;
@@ -174,7 +199,7 @@ void scroll_up() {
       }
     }
 }
-
+// Scrolls down through the list of files in the current window.
 void scroll_down() {
   selection++;
   selection = (selection > len - 1) ? len - 1 : selection;
@@ -187,6 +212,7 @@ void scroll_down() {
     }
 }
 
+// Sorts an array of file names alphabetically.
 void sort(char *files_[], int n) {
   char temp[1000];
   for (int i = 0; i < n - 1; i++) {
@@ -200,6 +226,7 @@ void sort(char *files_[], int n) {
   }
 }
 
+// Checks if a file contains only ASCII characters.
 int check_text(char *path) {
   FILE *ptr;
   ptr = fopen(path, "r");
@@ -214,6 +241,7 @@ int check_text(char *path) {
   return 1;
 }
 
+// Reads and displays the contents of a file in the current window.
 void read_(char *path) {
   unsigned char buffer[256];
   int ch;
@@ -269,6 +297,7 @@ void read_(char *path) {
   endwin();
 }
 
+// Renames a file.
 void rename_file(char *files[]) {
     char new_name[100];
     int i = 0, c;
@@ -279,7 +308,7 @@ void rename_file(char *files[]) {
     wrefresh(path_win);
 
     while ((c = wgetch(path_win)) != '\n') {
-        if (c == 127 || c == 8) {  // Handle backspace
+        if (c == 127 || c == 8) { 
             new_name[--i] = '\0';
             i = i < 0 ? 0 : i;
         } else {
@@ -315,6 +344,7 @@ void rename_file(char *files[]) {
   wgetch(path_win);
 }
 
+// Retrieves the parent directory of a given directory.f
 char *get_parent_directory(char *cwd) {
   char *a;
   a = strdup(cwd);
@@ -325,6 +355,7 @@ char *get_parent_directory(char *cwd) {
   return a;
 }
 
+// Deletes a file.
 void delete_(char *files[]) {
   char curr_path[1000];
   snprintf(curr_path, sizeof(curr_path), "%s%s", current_directory_->cwd,
@@ -332,6 +363,7 @@ void delete_(char *files[]) {
   remove(curr_path);
 }
 
+// Prompts the user to confirm file deletion.
 void delete_file(char *files[]) {
   int c;
   wclear(path_win);
@@ -357,6 +389,7 @@ LOOP_:
   }
 }
 
+// Copies a file to a new location.
 void copy_files(char *files[]) {
   char new_path[1000];
   int i = 0, c;
@@ -391,6 +424,7 @@ void copy_files(char *files[]) {
   fclose(new_file);
 }
 
+// Moves a file to a new location.
 void move_file(char *files[]) {
     char target_directory[1000];
     int i = 0, c;
@@ -401,7 +435,7 @@ void move_file(char *files[]) {
     wrefresh(path_win);
 
     while ((c = wgetch(path_win)) != '\n') {
-        if (c == 127 || c == 8) {  // Handle backspace
+        if (c == 127 || c == 8) { 
             target_directory[--i] = '\0';
             i = i < 0 ? 0 : i;
         } else {
@@ -448,6 +482,7 @@ void move_file(char *files[]) {
     wgetch(path_win);
 }
 
+ // Handles the Enter key press action.
 void handle_enter(char *files[]) {
   char *temp, *a;
   a = strdup(current_directory_->cwd);
@@ -480,6 +515,7 @@ void handle_enter(char *files[]) {
   refresh();
 }
 
+// Calculates the total size of a directory recursively.
 float get_recursive_size_directory(char *path) {
   float directory_size = 0;
   DIR *dir_ = NULL;
@@ -511,6 +547,7 @@ float get_recursive_size_directory(char *path) {
   return directory_size;
 }
 
+// Displays information about a file.
 void show_file_info(char *files[]) {
   wmove(info_win, 1, 1);
   char temp_address[1000];
@@ -532,6 +569,7 @@ void show_file_info(char *files[]) {
   }
 }
 
+// Creates a new file.
 void create_file() {
     char new_file_name[100];
     int i = 0, c;
@@ -585,6 +623,7 @@ void create_file() {
     wgetch(path_win);
 }
 
+// Searches for a file.
 void search_file(char *files[], int len) {
     char search_term[100];
     int i = 0, c;
