@@ -13,7 +13,7 @@
 #include <sys/types.h>  
 #include <sys/wait.h>   
 #include <unistd.h>    
-
+#include <stdlib.h>
 #include "config.h"
 
 #define isDir(mode) (S_ISDIR(mode))
@@ -57,6 +57,70 @@ void refreshWindows() {
   wrefresh(current_win);
   wrefresh(path_win);
   wrefresh(info_win);
+}
+
+typedef struct {
+    char* directory;
+    char** target;
+    int* len;
+} ThreadData;
+
+void* scan_directory(void* arg) {
+    ThreadData* data = (ThreadData*)arg;
+    DIR* dir_;
+    struct dirent* dir_entry;
+
+    dir_ = opendir(data->directory);
+    if (dir_ == NULL) {
+        pthread_exit(NULL);
+    }
+
+    while ((dir_entry = readdir(dir_)) != NULL) {
+        if (strcmp(dir_entry->d_name, ".") != 0) {
+            data->target[(*data->len)++] = strdup(dir_entry->d_name);
+        }
+    }
+
+    closedir(dir_);
+    pthread_exit(NULL);
+}
+
+int get_files_multithreaded(char* directory, char* target[], int* len) {
+    const int NUM_THREADS = 4;
+    pthread_t threads[NUM_THREADS];
+    ThreadData thread_data[NUM_THREADS];
+    int *thread_len = malloc(NUM_THREADS * sizeof(int));
+    if (thread_len == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        thread_len[i] = 0;
+    }
+
+    int segment_size = (*len) / NUM_THREADS;
+    int remainder = (*len) % NUM_THREADS;
+
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        thread_data[i].directory = directory;
+        thread_data[i].target = target;
+        thread_data[i].len = &thread_len[i];
+
+        int size = (i == NUM_THREADS - 1) ? segment_size + remainder : segment_size;
+
+        pthread_create(&threads[i], NULL, scan_directory, &thread_data[i]);
+
+        directory += size;
+    }
+
+    for (int i = 0; i < NUM_THREADS; ++i) {
+        pthread_join(threads[i], NULL);
+        (*len) += thread_len[i];
+    }
+
+    free(thread_len); 
+
+    return 1;
 }
 
 int get_no_files_in_directory(char *directory) {
