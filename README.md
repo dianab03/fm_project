@@ -2,7 +2,7 @@
 
 FSM is a terminal-based file system manager written in C language, utilizing the ncurses library for building the user interface. It provides basic file management functionalities such as navigating directories, viewing file information, renaming, deleting, copying, moving files, creating files, and searching for files.
 
-## Features
+# Features
 - Navigate directories using arrow keys or navigation keys.
 - View detailed information about files and directories.
 - Rename files.
@@ -12,25 +12,12 @@ FSM is a terminal-based file system manager written in C language, utilizing the
 - Create new files.
 - Search for files based on a search term.
 
-## Dependencies
+# Dependencies
 - ncurses library
 - libmagic library
 - pthread library
 
-## Installation
-1. Clone the repository:
-
-```bash
-git clone https://github.com/username/fsm.git
-
-cd fsm
-
-make
-
-./fsm
-```
-
-## Usage
+# Usage
 - Use arrow keys or navigation keys to navigate through directories.
 - Press Enter to enter a directory or open a file for viewing.
 - Press 'r' to rename a file.
@@ -41,5 +28,5 @@ make
 - Press 's' to search for files based on a search term.
 - Press 'q' to quit the program.
 
-## Contributing 
+# Contributing 
 Contributions are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue on GitHub or submit a pull request.

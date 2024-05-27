@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <sys/types.h>  
 #include <sys/wait.h>    
-#include <config.h>
 
 // Feature: ncurses UI
 // Description: Utilizes ncurses library for creating a text-based user interface.
@@ -35,6 +34,8 @@
 // Description: Allocates and frees memory dynamically as needed.
 // Functions used: malloc(), free()
 #include <stdlib.h>
+
+#include "config.h"
 
 #define isDir(mode) (S_ISDIR(mode))
 
