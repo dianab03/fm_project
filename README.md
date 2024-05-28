@@ -27,6 +27,3 @@ FSM is a terminal-based file system manager written in C language, utilizing the
 - Press 'n' to create a new file.
 - Press 's' to search for files based on a search term.
 - Press 'q' to quit the program.
-
-# Contributing 
-Contributions are welcome! If you have any suggestions, bug reports, or feature requests, please open an issue on GitHub or submit a pull request.
